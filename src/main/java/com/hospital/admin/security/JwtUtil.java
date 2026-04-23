@@ -35,11 +35,26 @@ public class JwtUtil {
         claims.put("username", username);
         claims.put("moduleRoles", moduleRoles);
         
+        // Extract flat list of roles
+        List<String> roles = moduleRoles.stream()
+                .map(ModuleRoleResponse::getRoleName)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+        claims.put("roles", roles);
+        
+        boolean isSuperAdmin = roles.contains("SUPERADMIN");
+
         // Calculate audience based on modules the user has access to
-        List<String> audience = moduleRoles.stream()
+        List<String> audience;
+        if (isSuperAdmin) {
+            // SUPERADMIN gets access to all services
+            audience = java.util.Arrays.asList("bbms", "indent", "hospital", "admin");
+        } else {
+            audience = moduleRoles.stream()
                 .map(mr -> mr.getModuleName().toLowerCase())
                 .distinct()
                 .collect(java.util.stream.Collectors.toList());
+        }
 
         return Jwts.builder()
                 .claims(claims)
