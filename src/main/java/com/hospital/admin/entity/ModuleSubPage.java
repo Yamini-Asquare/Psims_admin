@@ -15,6 +15,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
+@jakarta.persistence.Table(name = "module_sub_page")
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor

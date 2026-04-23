@@ -9,7 +9,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "Users")
+@Table(name = "users")
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor

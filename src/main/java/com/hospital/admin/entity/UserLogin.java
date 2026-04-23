@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "UserLogin")
+@Table(name = "user_login")
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor

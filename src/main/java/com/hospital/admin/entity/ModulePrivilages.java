@@ -16,6 +16,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
+@jakarta.persistence.Table(name = "module_privilages")
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor

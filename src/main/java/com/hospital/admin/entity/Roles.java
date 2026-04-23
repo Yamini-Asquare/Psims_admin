@@ -15,6 +15,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
+@jakarta.persistence.Table(name = "roles")
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
