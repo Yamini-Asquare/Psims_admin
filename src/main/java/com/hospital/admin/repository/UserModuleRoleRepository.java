@@ -11,4 +11,6 @@ public interface UserModuleRoleRepository extends JpaRepository<UserModuleRole, 
     List<UserModuleRole> findByUserId(UUID userId);
 
     void deleteByUserId(UUID userId);
+    boolean existsByUserAndModuleAndRole(com.hospital.admin.entity.Users user, com.hospital.admin.entity.Modules module, com.hospital.admin.entity.Roles role);
 }
+

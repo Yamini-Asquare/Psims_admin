@@ -370,6 +370,7 @@ public class RoleOperationsService {
 
 			// Step 1: Get role
 			Roles role = rolesRepository.findById(roleId).orElseThrow(() -> new RuntimeException("Role not found"));
+			UUID roleModuleId = role.getModule().getId();
 
 			// Step 2: Role privileges
 			List<RolePrivilages> rolePrivileges = rolePrivilegesRepository.findByRoleId(roleId);
@@ -383,24 +384,34 @@ public class RoleOperationsService {
 
 			List<ModulePrivilages> modulePrivileges = modulePrivilegesRepository.findAllById(modulePrivilegeIds);
 
+			// Step 5: Fetch subPages
+			List<UUID> subPageIds = modulePrivileges.stream().map(ModulePrivilages::getSubPageId).distinct().toList();
+
+			List<ModuleSubPage> subPages = subPageRepository.findAllById(subPageIds).stream()
+					.filter(sp -> sp.getModule().getId().equals(roleModuleId))
+					.toList();
+			
+			// Filter modulePrivileges to only those that belong to the filtered subPages
+			List<UUID> filteredSubPageIds = subPages.stream().map(ModuleSubPage::getId).toList();
+			modulePrivileges = modulePrivileges.stream()
+					.filter(mp -> filteredSubPageIds.contains(mp.getSubPageId()))
+					.toList();
+
 			// Step 4: Group privileges by subPageId
 			Map<UUID, List<ModulePrivilages>> privilegeMap = modulePrivileges.stream()
 					.collect(Collectors.groupingBy(ModulePrivilages::getSubPageId));
 
-			// Step 5: Fetch subPages
-			List<UUID> subPageIds = modulePrivileges.stream().map(ModulePrivilages::getSubPageId).distinct().toList();
-
-			List<ModuleSubPage> subPages = subPageRepository.findAllById(subPageIds);
-
 			// ✅ SORT subPages by order
-			subPages.sort(Comparator.comparing(ModuleSubPage::getSubPageOrder,
+			List<ModuleSubPage> sortedSubPages = new ArrayList<>(subPages);
+			sortedSubPages.sort(Comparator.comparing(ModuleSubPage::getSubPageOrder,
 					Comparator.nullsLast(Comparator.naturalOrder())));
 
 			// Step 6: Group subPages by module (preserve order)
-			Map<UUID, List<ModuleSubPage>> subPageMap = subPages.stream()
+			Map<UUID, List<ModuleSubPage>> subPageMap = sortedSubPages.stream()
 					.collect(Collectors.groupingBy(sp -> sp.getModule().getId(), LinkedHashMap::new, // ✅ preserves
 																										// order
 							Collectors.toList()));
+
 
 			// Step 7: Fetch modules
 			List<UUID> moduleIds = new ArrayList<>(subPageMap.keySet());

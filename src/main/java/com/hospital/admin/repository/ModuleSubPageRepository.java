@@ -14,8 +14,13 @@ public interface ModuleSubPageRepository extends JpaRepository<ModuleSubPage, UU
 
 	List<ModuleSubPage> findByModuleId(UUID moduleId);
 
+	boolean existsBySubPageNameAndModule(String subPageName, Modules module);
+
+	Optional<ModuleSubPage> findBySubPageNameAndModule(String subPageName, Modules module);
+
 	boolean existsBySubPageName(String subPageName);
 
 	Optional<ModuleSubPage> findBySubPageName(String subPageName);
 	List<ModuleSubPage> findByModuleIdOrderBySubPageOrderAsc(UUID moduleId);	
 }
+

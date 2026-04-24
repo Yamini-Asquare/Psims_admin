@@ -64,40 +64,52 @@ public class DataInitializationService implements CommandLineRunner {
 		if (!modulesRepository.existsByModuleName("BBMS")) {
 			modulesRepository.save(Modules.builder().moduleName("BBMS").isActive(true).build());
 		}
+		if (!modulesRepository.existsByModuleName("INDENT")) {
+			modulesRepository.save(Modules.builder().moduleName("INDENT").isActive(true).build());
+		}
 	}
 
 	// STEP 2
 	private void createDefaultRoles() {
-		Modules module = modulesRepository.findByModuleName("ADMIN")
-				.orElseThrow(() -> new RuntimeException("Module ADMIN not found"));
+		List.of("ADMIN", "BBMS", "INDENT").forEach(moduleName -> {
+			Modules module = modulesRepository.findByModuleName(moduleName)
+					.orElseThrow(() -> new RuntimeException("Module " + moduleName + " not found"));
 
-		if (!rolesRepository.existsByRoleName("SUPERADMIN")) {
-			rolesRepository.save(Roles.builder().roleName("SUPERADMIN").description("System Administrator")
-					.isActive(true).module(module).build());
-		}
+			if (!rolesRepository.existsByRoleNameAndModule("SUPERADMIN", module)) {
+				rolesRepository.save(Roles.builder().roleName("SUPERADMIN").description("System Administrator")
+						.isActive(true).module(module).build());
+			}
+		});
 	}
 
 	// STEP 3
 	private void createDefaultAdminUser() {
+		Users savedUser;
 		if (userLoginRepository.findByUsername("superadmin").isEmpty()) {
-			Roles adminRole = rolesRepository.findByRoleName("SUPERADMIN")
-					.orElseThrow(() -> new RuntimeException("SUPERADMIN role not found"));
-
-			Modules module = modulesRepository.findByModuleName("ADMIN")
-					.orElseThrow(() -> new RuntimeException("ADMIN module not found"));
-
 			Users user = Users.builder().name("System Admin").empCode("EMP001").email("superadmin@admin.com")
 					.isActive(true).contact(9999999999L).workLocation("Head Office").build();
-
-			Users savedUser = usersRepository.save(user);
-
-			// Assign the role through the junction table
-			userModuleRoleRepository.save(com.hospital.admin.entity.UserModuleRole.builder().user(savedUser)
-					.module(module).role(adminRole).build());
+			savedUser = usersRepository.save(user);
 
 			userLoginRepository.save(UserLogin.builder().username("superadmin").email("admin@admin.com")
 					.password(passwordEncoder.encode("superadmin123")).userId(savedUser.getId()).build());
+		} else {
+			UserLogin login = userLoginRepository.findByUsername("superadmin").get();
+			savedUser = usersRepository.findById(login.getUserId())
+					.orElseThrow(() -> new RuntimeException("User not found"));
 		}
+
+		// Assign SUPERADMIN role for all modules if not already assigned
+		List.of("ADMIN", "BBMS", "INDENT").forEach(moduleName -> {
+			Modules module = modulesRepository.findByModuleName(moduleName)
+					.orElseThrow(() -> new RuntimeException("Module " + moduleName + " not found"));
+			Roles adminRole = rolesRepository.findByRoleNameAndModule("SUPERADMIN", module)
+					.orElseThrow(() -> new RuntimeException("SUPERADMIN role for " + moduleName + " not found"));
+
+			if (!userModuleRoleRepository.existsByUserAndModuleAndRole(savedUser, module, adminRole)) {
+				userModuleRoleRepository.save(com.hospital.admin.entity.UserModuleRole.builder().user(savedUser)
+						.module(module).role(adminRole).build());
+			}
+		});
 	}
 
 	// STEP 4
@@ -122,6 +134,34 @@ public class DataInitializationService implements CommandLineRunner {
 	private void createSubPages() {
 		createAdminSubPages();
 		createBBMSSubPages();
+		createIndentSubPages();
+	}
+
+	private void createIndentSubPages() {
+		Modules module = modulesRepository.findByModuleName("INDENT")
+				.orElseThrow(() -> new RuntimeException("Module INDENT not found"));
+
+		Map<String, Long> subPageOrderMap = Map.ofEntries(Map.entry("Dashboard", 1L), Map.entry("Insights", 2L),
+				Map.entry("Raise Indent", 3L), Map.entry("HOD Approvals", 4L), Map.entry("Inventory", 5L),
+				Map.entry("Procurement", 6L), Map.entry("PO & Delivery", 7L), Map.entry("Quality Check", 8L),
+				Map.entry("Issuance", 9L), Map.entry("Item Master", 10L), Map.entry("Visual Flow", 11L),
+				Map.entry("Timeline", 12L));
+
+		Map<String, Map<String, String>> config = Map.ofEntries(
+				Map.entry("Dashboard", Map.of("section", "OVERVIEW", "menu", "Dashboard")),
+				Map.entry("Insights", Map.of("section", "OVERVIEW", "menu", "Insights")),
+				Map.entry("Raise Indent", Map.of("section", "WORKFLOW", "menu", "Raise Indent")),
+				Map.entry("HOD Approvals", Map.of("section", "WORKFLOW", "menu", "HOD Approvals")),
+				Map.entry("Inventory", Map.of("section", "WORKFLOW", "menu", "Inventory")),
+				Map.entry("Procurement", Map.of("section", "WORKFLOW", "menu", "Procurement")),
+				Map.entry("PO & Delivery", Map.of("section", "WORKFLOW", "menu", "PO & Delivery")),
+				Map.entry("Quality Check", Map.of("section", "WORKFLOW", "menu", "Quality Check")),
+				Map.entry("Issuance", Map.of("section", "WORKFLOW", "menu", "Issuance")),
+				Map.entry("Item Master", Map.of("section", "MASTER DATA", "menu", "Item Master")),
+				Map.entry("Visual Flow", Map.of("section", "INSIGHTS", "menu", "Visual Flow")),
+				Map.entry("Timeline", Map.of("section", "INSIGHTS", "menu", "Timeline")));
+
+		initializePages(module, subPageOrderMap, config);
 	}
 
 	private void createAdminSubPages() {
@@ -193,14 +233,14 @@ public class DataInitializationService implements CommandLineRunner {
 			String section = pageConfig.get("section");
 			String menu = pageConfig.get("menu");
 
-			if (!subpageRepository.existsBySubPageName(name)) {
+			if (!subpageRepository.existsBySubPageNameAndModule(name, module)) {
 
 				subpageRepository.save(ModuleSubPage.builder().module(module).subPageName(name).isActive(true)
 						.section(section).menuName(menu).subPageOrder(order).build());
 
 			} else {
 
-				ModuleSubPage existing = subpageRepository.findBySubPageName(name).orElse(null);
+				ModuleSubPage existing = subpageRepository.findBySubPageNameAndModule(name, module).orElse(null);
 
 				if (existing != null) {
 					boolean changed = false;
@@ -243,16 +283,20 @@ public class DataInitializationService implements CommandLineRunner {
 
 	// STEP 8
 	private void createRolePrivileges() {
-		Roles adminRole = rolesRepository.findByRoleName("SUPERADMIN")
-				.orElseThrow(() -> new RuntimeException("SUPERADMIN role not found"));
+		List<Roles> adminRoles = rolesRepository.findAll().stream()
+				.filter(role -> "SUPERADMIN".equals(role.getRoleName())).toList();
 
 		List<ModulePrivilages> allPrivileges = modulePrivilagesRepository.findAll();
 
-		allPrivileges.forEach(privilege -> {
-			if (!rolePrivilagesRepository.existsByRoleIdAndSubPagePrivilageId(adminRole.getId(), privilege.getId())) {
-				rolePrivilagesRepository.save(RolePrivilages.builder().roleId(adminRole.getId())
-						.subPagePrivilageId(privilege.getId()).build());
-			}
+		adminRoles.forEach(adminRole -> {
+			allPrivileges.forEach(privilege -> {
+				if (!rolePrivilagesRepository.existsByRoleIdAndSubPagePrivilageId(adminRole.getId(),
+						privilege.getId())) {
+					rolePrivilagesRepository.save(RolePrivilages.builder().roleId(adminRole.getId())
+							.subPagePrivilageId(privilege.getId()).build());
+				}
+			});
 		});
 	}
+
 }

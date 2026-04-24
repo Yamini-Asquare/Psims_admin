@@ -13,7 +13,12 @@ import com.hospital.admin.entity.UserLogin;
 public interface RolesRepository extends JpaRepository<Roles, UUID> {
 
 
+    Optional<Roles> findByRoleNameAndModule(String roleName, com.hospital.admin.entity.Modules module);
+
+    boolean existsByRoleNameAndModule(String roleName, com.hospital.admin.entity.Modules module);
+
     Optional<Roles> findByRoleName(String roleName);
 
     boolean existsByRoleName(String roleName);
-    }
+}
+

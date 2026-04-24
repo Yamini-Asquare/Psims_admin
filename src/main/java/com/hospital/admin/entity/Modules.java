@@ -39,5 +39,6 @@ public class Modules  extends BaseEntity{
 	    private List<Roles> roles;
 	   
 	   @OneToMany(mappedBy = "module", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+	   @JsonManagedReference
 	    private List<ModuleSubPage> subPages; 
 }
